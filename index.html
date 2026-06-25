@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>똥 피하기 게임</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #f3f4f6; touch-action: none; font-family: 'Inter', sans-serif; }
+        #game-container { position: relative; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; }
+        canvas { background-color: white; border-radius: 1rem; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); cursor: none; }
+        .ui-overlay { position: absolute; z-index: 10; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="start-screen" class="ui-overlay p-6 bg-white rounded-2xl shadow-xl text-center">
+            <h1 class="text-4xl font-bold mb-4">💩 피하기 게임</h1>
+            <p class="text-gray-600 mb-6">마우스나 터치로 움직여서 똥을 피하세요!</p>
+            <button onclick="startGame()" class="px-8 py-3 bg-yellow-500 hover:bg-yellow-600 text-white font-bold rounded-full transition">게임 시작</button>
+        </div>
+
+        <div id="game-over-screen" class="ui-overlay p-6 bg-white rounded-2xl shadow-xl text-center hidden">
+            <h2 class="text-3xl font-bold mb-2">게임 오버!</h2>
+            <p id="final-score" class="text-xl text-gray-700 mb-6"></p>
+            <button onclick="startGame()" class="px-8 py-3 bg-yellow-500 hover:bg-yellow-600 text-white font-bold rounded-full transition">다시 하기</button>
+        </div>
+
+        <div id="score-board" class="absolute top-4 left-4 text-2xl font-bold text-gray-800 hidden">
+            점수: <span id="current-score">0</span>
+        </div>
+
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreBoard = document.getElementById('score-board');
+        const startScreen = document.getElementById('start-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        const currentScoreEl = document.getElementById('current-score');
+        const finalScoreEl = document.getElementById('final-score');
+
+        let score = 0;
+        let gameActive = false;
+        let playerX = 0;
+        const playerSize = 50;
+        let poops = [];
+        let gameLoopId;
+
+        // Resize handler
+        function resize() {
+            canvas.width = Math.min(window.innerWidth * 0.9, 500);
+            canvas.height = window.innerHeight * 0.8;
+            playerX = canvas.width / 2;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        function movePlayer(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            playerX = clientX - rect.left - playerSize / 2;
+            // Constrain to canvas
+            if (playerX < 0) playerX = 0;
+            if (playerX > canvas.width - playerSize) playerX = canvas.width - playerSize;
+        }
+
+        canvas.addEventListener('mousemove', movePlayer);
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            movePlayer(e);
+        }, { passive: false });
+
+        function startGame() {
+            score = 0;
+            poops = [];
+            gameActive = true;
+            startScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            scoreBoard.classList.remove('hidden');
+            animate();
+        }
+
+        function gameOver() {
+            gameActive = false;
+            cancelAnimationFrame(gameLoopId);
+            gameOverScreen.classList.remove('hidden');
+            finalScoreEl.innerText = `최종 점수: ${Math.floor(score)}`;
+        }
+
+        function animate() {
+            if (!gameActive) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Player
+            ctx.font = '40px serif';
+            ctx.fillText('🏃', playerX, canvas.height - 20);
+
+            // Add Poop
+            if (Math.random() < 0.05 + (score / 10000)) {
+                poops.push({
+                    x: Math.random() * (canvas.width - 30),
+                    y: -50,
+                    size: 30,
+                    speed: 3 + (score / 500)
+                });
+            }
+
+            // Update Poops
+            poops.forEach((poop, index) => {
+                poop.y += poop.speed;
+                ctx.fillText('💩', poop.x, poop.y);
+
+                // Collision Detection
+                const playerY = canvas.height - 50;
+                if (poop.y > playerY - 30 && poop.y < playerY + 30 && 
+                    poop.x > playerX - 30 && poop.x < playerX + 30) {
+                    gameOver();
+                }
+
+                // Cleanup
+                if (poop.y > canvas.height) {
+                    poops.splice(index, 1);
+                    score += 10;
+                    currentScoreEl.innerText = Math.floor(score);
+                }
+            });
+
+            gameLoopId = requestAnimationFrame(animate);
+        }
+    </script>
+</body>
+</html>
